@@ -9,13 +9,31 @@
         type="text"
         placeholder="Например DOGE"
       />
-      <button type="button" @click="add" class="button-add">Добавить</button>
+      <button type="button" @click="add" class="btn">Добавить</button>
     </section>
-    <template v-if="tickers.length > 0">
+    <hr class="line" />
+    <template v-if="tickers.length">
+      <div class="block-filter">
+        <div class="row">
+          Фильтр:<input class="input-filter" v-model="filter" />
+        </div>
+        <div class="row">
+          <button
+            class="btn btn-pugination"
+            @click="page = page - 1"
+            v-if="page > 1"
+          >Назад</button>
+          <button
+            class="btn btn-pugination"
+            @click="page = page + 1"
+            v-if="hasNextPage"
+          >Вперед</button>
+        </div>
+      </div>
       <hr class="line" />
       <dl class="container-tickers">
         <div
-          v-for="t in tickers"
+          v-for="t in filteredTickers()"
           :key="t.name"
           class="box-ticker"
           :class="{ 'selected-ticker': selectedTicker === t }"
@@ -23,9 +41,7 @@
         >
           <div class="box-ticker-information">
             <dt class="title-ticker">{{ t.name }} - USD</dt>
-            <dd class="price-ticker">
-              {{ t.price }}
-            </dd>
+            <dd class="price-ticker">{{ t.price }}</dd>
           </div>
           <div>
             <button class="button-delete" @click.stop="handleDelete(t)">
@@ -59,6 +75,9 @@ export default {
       tickers: [],
       selectedTicker: "",
       graph: [],
+      filter: "",
+      page: 1,
+      hasNextPage: true,
     };
   },
 
@@ -73,6 +92,13 @@ export default {
   },
 
   methods: {
+    filteredTickers() {
+      const start = (this.page - 1) * 6;
+      const end = this.page * 6;
+      const filteredTickers = this.tickers.filter((ticker) => ticker.name.includes(this.filter));
+      this.hasNextPage = filteredTickers.length >= end;
+      return filteredTickers.slice(start, end);
+    },
     subscribeToUpdates(tickerName) {
       setInterval(async () => {
         const f = await fetch(
@@ -96,8 +122,9 @@ export default {
       };
 
       this.tickers.push(currentTicker);
+      this.filter = "";
 
-      sessionStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
+
       this.subscribeToUpdates(currentTicker.name);
     },
 
@@ -119,10 +146,43 @@ export default {
       );
     },
   },
+
+  watch: {
+    filter() {
+      return this.page = 1;
+    },
+
+    tickers() {
+      sessionStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
+    },
+  },
 };
 </script>
 
 <style lang="scss" scoped>
+@mixin btn {
+  display: flex;
+  background: var(--main-color, darkgray);
+  color: var(--button-add-text-color, white);
+  height: 2rem;
+  width: 7rem;
+  padding: 1rem;
+  border: none;
+  justify-content: center;
+  align-items: center;
+  text-decoration: none;
+  border-radius: 50px;
+  cursor: pointer;
+}
+@mixin input {
+  display: flex;
+  align-items: center;
+  border: none;
+  outline: none;
+  color: var(--main-color, gray);
+  box-shadow: 0 8px 6px -6px var(--input-color-placeholder);
+  width: 15rem;
+}
 .app {
   .container-add-ticker {
     display: flex;
@@ -133,32 +193,39 @@ export default {
     margin-bottom: 1rem;
   }
   .input-add-ticker {
-    display: flex;
-    align-items: center;
-    border: none;
-    outline: none;
-    color: var(--main-color, gray);
-    box-shadow: 0 8px 6px -6px var(--input-color-placeholder);
+    @include input;
     margin-bottom: 1rem;
-    width: 15rem;
     height: 2.5rem;
+  }
+  .input-filter {
+    @include input;
+    color: black;
+    margin-left: 1rem;
+    width: 10rem;
   }
   input::placeholder {
     color: var(--input-color-placeholder, lightgray);
   }
-  .button-add {
+  .btn {
+    @include btn;
+  }
+  .row {
     display: flex;
-    background: var(--main-color, darkgray);
-    color: var(--button-add-text-color, white);
-    height: 2rem;
-    width: 7rem;
-    padding: 1rem;
-    border: none;
+    flex-flow: row wrap;
     justify-content: center;
     align-items: center;
-    text-decoration: none;
-    border-radius: 50px;
-    cursor: pointer;
+  }
+  .btn-pugination {
+    @include btn;
+    display: flex;
+    flex-flow: row nowrap;
+    margin-right: 1rem;
+  }
+  .block-filter {
+    display: flex;
+    margin: 1rem;
+    flex-flow: row wrap;
+    justify-content: space-between;
   }
   .line {
     border-color: var(--input-color-placeholder);
@@ -174,6 +241,9 @@ export default {
     color: var(--main-color, darkgray);
     font-size: 0.7rem;
     cursor: pointer;
+    &:hover {
+      color: lightgray;
+    }
   }
   .box-ticker {
     display: flex;
@@ -220,6 +290,17 @@ export default {
   }
   .selected-ticker {
     border: 2px solid var(--select-graph-color, purple);
+  }
+}
+@media screen and (max-width: 340px) {
+  .btn-pugination {
+    margin-bottom: 1rem;
+    margin-right: 0;
+  }
+}
+@media screen and (max-width: 614px) {
+  .row {
+    margin-bottom: 1rem;
   }
 }
 </style>
