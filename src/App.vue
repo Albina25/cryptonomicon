@@ -82,7 +82,17 @@ export default {
   },
 
   created() {
+    const windowData = Object.fromEntries(new URL(window.location).searchParams.entries());
+
+    if (windowData.filter) {
+      this.filter = windowData.filter;
+    }
+    if (windowData.page) {
+      this.page = windowData.page;
+    }
+
     const tickersData = sessionStorage.getItem("cryptonomicon-list");
+
     if (tickersData) {
       this.tickers = JSON.parse(tickersData);
       this.tickers.forEach((ticker) => {
@@ -96,7 +106,7 @@ export default {
       const start = (this.page - 1) * 6;
       const end = this.page * 6;
       const filteredTickers = this.tickers.filter((ticker) => ticker.name.includes(this.filter));
-      this.hasNextPage = filteredTickers.length >= end;
+      this.hasNextPage = filteredTickers.length > end;
       return filteredTickers.slice(start, end);
     },
     subscribeToUpdates(tickerName) {
@@ -124,7 +134,6 @@ export default {
       this.tickers.push(currentTicker);
       this.filter = "";
 
-
       this.subscribeToUpdates(currentTicker.name);
     },
 
@@ -149,7 +158,21 @@ export default {
 
   watch: {
     filter() {
-      return this.page = 1;
+      this.page = 1;
+      // const url = 'hello-world.html';
+
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+      );
+    },
+    page() {
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+      );
     },
 
     tickers() {
