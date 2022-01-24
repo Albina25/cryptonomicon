@@ -33,7 +33,7 @@
       <hr class="line" />
       <dl class="container-tickers">
         <div
-          v-for="t in filteredTickers()"
+          v-for="t in paginatedTickers"
           :key="t.name"
           class="box-ticker"
           :class="{ 'selected-ticker': selectedTicker === t }"
@@ -56,7 +56,7 @@
       <h3 class="title-graph">{{ selectedTicker.name }} - USD</h3>
       <div class="box-graph">
         <div
-          v-for="(bar, index) in normalizeGraph()"
+          v-for="(bar, index) in normalizedGraph"
           :key="index"
           :style="{ height: `${bar}%` }"
           class="bar-graph"
@@ -72,17 +72,23 @@ export default {
   data() {
     return {
       ticker: "",
+      filter: "",
       tickers: [],
       selectedTicker: "",
       graph: [],
-      filter: "",
       page: 1,
-      hasNextPage: true,
     };
   },
 
   created() {
     const windowData = Object.fromEntries(new URL(window.location).searchParams.entries());
+
+    // const VALID_KEY = ['filter', 'page'];
+    // VALID_KEY.forEach(key => {
+    //   if (windowData[key]) {
+    //     this[key] = windowData[key]
+    //   }
+    // });
 
     if (windowData.filter) {
       this.filter = windowData.filter;
@@ -100,15 +106,50 @@ export default {
       });
     }
   },
+  computed: {
+    startIndexOfPage() {
+      return (this.page - 1) * 6;
+    },
+
+    endIndexOfPage() {
+      return this.page * 6;
+    },
+
+    filteredTickers() {
+      return this.tickers.filter((ticker) =>
+          ticker.name.includes(this.filter)
+      );
+    },
+
+    paginatedTickers() {
+      return this.filteredTickers.slice(this.startIndexOfPage, this.endIndexOfPage);
+    },
+
+    hasNextPage() {
+      return this.filteredTickers.length > this.endIndexOfPage;
+    },
+
+    normalizedGraph() {
+      const maxPrice = Math.max(...this.graph);
+      const minPrice = Math.min(...this.graph);
+
+      if (maxPrice === minPrice) {
+        return this.graph.map(() => 50);
+      }
+      return this.graph.map(
+        (price) => 5 + ((price - minPrice) * 95) / (maxPrice - minPrice)
+      );
+    },
+
+    pageStateOptions() {
+      return {
+        page: this.page,
+        filter: this.filter,
+      }
+    },
+  },
 
   methods: {
-    filteredTickers() {
-      const start = (this.page - 1) * 6;
-      const end = this.page * 6;
-      const filteredTickers = this.tickers.filter((ticker) => ticker.name.includes(this.filter));
-      this.hasNextPage = filteredTickers.length > end;
-      return filteredTickers.slice(start, end);
-    },
     subscribeToUpdates(tickerName) {
       setInterval(async () => {
         const f = await fetch(
@@ -131,7 +172,8 @@ export default {
         price: "-",
       };
 
-      this.tickers.push(currentTicker);
+      this.tickers = [...this.tickers, currentTicker];
+      // this.tickers.push(currentTicker);
       this.filter = "";
 
       this.subscribeToUpdates(currentTicker.name);
@@ -139,39 +181,39 @@ export default {
 
     select(ticker) {
       this.selectedTicker = ticker;
-      this.graph = [];
     },
 
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter((t) => t !== tickerToRemove);
       this.selectedTicker = "";
     },
-
-    normalizeGraph() {
-      const maxPrice = Math.max(...this.graph);
-      const minPrice = Math.min(...this.graph);
-      return this.graph.map(
-        (price) => 5 + ((price - minPrice) * 95) / (maxPrice - minPrice)
-      );
-    },
   },
 
   watch: {
+    selectedTicker() {
+      this.graph = [];
+    },
+
+    paginatedTickers() {
+      if (this.paginatedTickers.length === 0 && this.page > 1) {
+        this.page -= 1;
+      }
+    },
+
     filter() {
       this.page = 1;
-      // const url = 'hello-world.html';
 
-      window.history.pushState(
-        null,
-        document.title,
-        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
-      );
+      // window.history.pushState(
+      //   null,
+      //   document.title,
+      //   `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+      // );
     },
-    page() {
+    pageStateOptions(value) {
       window.history.pushState(
         null,
         document.title,
-        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+        `${window.location.pathname}?filter=${value.filter}&page=${value.page}`
       );
     },
 
